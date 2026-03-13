@@ -1,0 +1,19 @@
+# Build artifacts
+build/
+DerivedData/
+
+# Xcode
+IndividualSharedSettings.plist
+UserSettings.plist
+*.xcuserstate
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+
+# Misc
+.DS_Store
+*.swp
+*.lock

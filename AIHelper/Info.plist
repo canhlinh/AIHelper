@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+
+	<!-- Hide the app from the Dock -->
+	<key>LSUIElement</key>
+	<true/>
+
+	<!-- Accessibility (required for CGEvent tap) -->
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Paragraph needs accessibility access to detect your global shortcut key and read selected text.</string>
+
+	<!-- Paste-board / AppleEvents -->
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Paragraph uses Apple Events to copy your selected text.</string>
+</dict>
+</plist>
