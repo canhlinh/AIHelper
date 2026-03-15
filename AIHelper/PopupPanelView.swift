@@ -25,6 +25,7 @@ struct PopupPanelView: View {
             Divider().overlay(Color.white.opacity(0.1))
             footerView
         }
+        .preferredColorScheme(.dark)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(nsColor: NSColor(red: 0.1, green: 0.1, blue: 0.11, alpha: 0.98)))
@@ -65,7 +66,7 @@ struct PopupPanelView: View {
             }
             .buttonStyle(.plain)
 
-            TextField("Ask follow-up...", text: $vm.followUpQuery)
+            TextField("", text: $vm.followUpQuery, prompt: Text("Ask follow-up...").foregroundColor(.white.opacity(0.4)))
                 .textFieldStyle(.plain)
                 .font(.system(size: 18, weight: .medium))
                 .focused($isQueryFocused)
@@ -76,7 +77,8 @@ struct PopupPanelView: View {
                     submitFollowUp()
                     return .handled
                 }
-                .foregroundStyle(.white)
+                .foregroundColor(.white)
+                .accentColor(.white)
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
