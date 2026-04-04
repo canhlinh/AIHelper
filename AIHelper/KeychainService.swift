@@ -6,8 +6,8 @@
 import Foundation
 import Security
 
-final class KeychainService {
-    static let shared = KeychainService()
+final class KeychainService: @unchecked Sendable {
+    nonisolated static let shared = KeychainService()
 
     private let service: String
     private let account = "openai_api_key"
@@ -17,12 +17,12 @@ final class KeychainService {
         service = Bundle.main.bundleIdentifier ?? "dev.lingcloud.aihelper"
     }
 
-    func getAPIKey() -> String {
+    nonisolated func getAPIKey() -> String {
         migrateLegacyAPIKeyIfNeeded()
         return readAPIKey() ?? ""
     }
 
-    func setAPIKey(_ value: String) {
+    nonisolated func setAPIKey(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             deleteAPIKey()
@@ -31,7 +31,7 @@ final class KeychainService {
         }
     }
 
-    private func migrateLegacyAPIKeyIfNeeded() {
+    nonisolated private func migrateLegacyAPIKeyIfNeeded() {
         guard readAPIKey() == nil else { return }
         let legacyValue = UserDefaults.standard.string(forKey: legacyDefaultsKey) ?? ""
         let trimmed = legacyValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -41,7 +41,7 @@ final class KeychainService {
         UserDefaults.standard.removeObject(forKey: legacyDefaultsKey)
     }
 
-    private func readAPIKey() -> String? {
+    nonisolated private func readAPIKey() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -60,7 +60,7 @@ final class KeychainService {
         return value
     }
 
-    private func saveAPIKey(_ value: String) {
+    nonisolated private func saveAPIKey(_ value: String) {
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -80,7 +80,7 @@ final class KeychainService {
         }
     }
 
-    private func deleteAPIKey() {
+    nonisolated private func deleteAPIKey() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

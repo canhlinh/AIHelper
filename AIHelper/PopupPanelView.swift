@@ -145,6 +145,11 @@ struct PopupPanelView: View {
                     .font(.system(size: 14))
                     .foregroundStyle(Color.white.opacity(0.3))
             }
+            
+            if let thinking = vm.state.thinkingText, !thinking.isEmpty {
+                ThinkingView(text: thinking)
+                    .padding(.top, 4)
+            }
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -243,6 +248,54 @@ private struct LoadingDotsView: View {
             }
         }
         .onReceive(timer) { _ in dot = (dot + 1) % 3 }
+    }
+}
+
+// MARK: - Thinking View
+
+private struct ThinkingView: View {
+    let text: String
+    @State private var isExpanded = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 12))
+                    Text("Thought Process")
+                        .font(.system(size: 12, weight: .semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+                .foregroundStyle(.blue.opacity(0.8))
+            }
+            .buttonStyle(.plain)
+            
+            if isExpanded {
+                Text(text)
+                    .font(.system(size: 13, design: .serif))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineSpacing(2)
+                    .padding(.leading, 4)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.blue.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.blue.opacity(0.1), lineWidth: 1)
+        )
     }
 }
 

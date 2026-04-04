@@ -12,28 +12,29 @@ enum AIProvider: String, CaseIterable, Codable, Sendable {
     case openAI = "OpenAI"
     case ollama = "Ollama"
 
-    var defaultBaseURL: String {
+    nonisolated var defaultBaseURL: String {
         switch self {
         case .openAI: return "https://api.groq.com/openai/v1"
         case .ollama: return "http://localhost:11434/v1"
         }
     }
 
-    var defaultModel: String {
+    nonisolated var defaultModel: String {
         switch self {
         case .openAI: return "meta-llama/llama-4-scout-17b-16e-instruct"
-        case .ollama: return "gemma3:12b"
+        case .ollama: return "gemma4:e4b"
         }
     }
 
-    var requiresAPIKey: Bool { self == .openAI }
+    nonisolated var requiresAPIKey: Bool { self == .openAI }
 }
 
 extension UserDefaults {
-    private enum K {
+    nonisolated private enum K {
         static let provider = "aiProvider"
         static let baseURL  = "aiBaseURL"
         static let model    = "aiModel"
+        static let enableThinking = "aiEnableThinking"
     }
 
     nonisolated var aiProvider: AIProvider {
@@ -58,6 +59,11 @@ extension UserDefaults {
             return aiProvider.defaultModel
         }
         set { set(newValue, forKey: K.model) }
+    }
+
+    nonisolated var aiEnableThinking: Bool {
+        get { bool(forKey: K.enableThinking) }
+        set { set(newValue, forKey: K.enableThinking) }
     }
 }
 
@@ -84,7 +90,7 @@ enum AIAction: String, CaseIterable, Sendable {
         case .changeTone:
             return "You are a writing assistant. Rewrite the user's text in a professional and polished tone. Return only the rewritten text."
         case .followUp:
-            return "You are a helpful assistant. Answer the user's query based on the provided text context. Be concise."
+            return "You are a helpful assistant. Provide a helpful and nuanced response based on the text context provided."
         }
     }
 
@@ -115,11 +121,16 @@ enum AIAction: String, CaseIterable, Sendable {
 
 actor AIService {
     static let shared = AIService()
+    
+    enum TokenType: Sendable {
+        case thinking
+        case content
+    }
 
     func stream(
         action: AIAction,
         text: String,
-        onToken: @escaping @Sendable (String) -> Void,
+        onToken: @escaping @Sendable (String, TokenType) -> Void,
         onComplete: @escaping @Sendable (Error?) -> Void
     ) {
         let provider = UserDefaults.standard.aiProvider
@@ -146,7 +157,7 @@ actor AIService {
         }
         request.setValue("AIHelper/1.0", forHTTPHeaderField: "User-Agent")
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "stream": true,
             "messages": [
@@ -154,9 +165,15 @@ actor AIService {
                 ["role": "user",   "content": text]
             ]
         ]
+        
+        if provider == .ollama && UserDefaults.standard.aiEnableThinking {
+            body["think"] = true
+        }
+        
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         Task {
+            var isInThinkTag = false
             do {
                 let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
@@ -193,22 +210,91 @@ actor AIService {
                     guard let jsonData = data.data(using: .utf8),
                           let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else { continue }
 
-                    if let errorObj = json["error"] as? [String: Any],
-                       let message = errorObj["message"] as? String {
-                        onComplete(AIError.apiError(message))
-                        return
-                    }
-
                     guard let choices = json["choices"] as? [[String: Any]],
-                          let delta = choices.first?["delta"] as? [String: Any],
-                          let content = delta["content"] as? String else { continue }
-                    await MainActor.run { onToken(content) }
+                          let delta = choices.first?["delta"] as? [String: Any] else { continue }
+                    
+                    // 1. Handle explicit reasoning/thinking fields
+                    if let reasoning = (delta["reasoning_content"] as? String) ?? (delta["thinking"] as? String), !reasoning.isEmpty {
+                        await MainActor.run { onToken(reasoning, .thinking) }
+                        continue
+                    }
+                    
+                    // 2. Handle content field (with potential <think> tags)
+                    guard let content = delta["content"] as? String, !content.isEmpty else { continue }
+                    
+                    var remaining = content
+                    while !remaining.isEmpty {
+                        if !isInThinkTag {
+                            if let range = remaining.range(of: "<think>") {
+                                let prefix = String(remaining[..<range.lowerBound])
+                                if !prefix.isEmpty {
+                                    await MainActor.run { onToken(prefix, .content) }
+                                }
+                                isInThinkTag = true
+                                remaining = String(remaining[range.upperBound...])
+                            } else {
+                                let finalPart = remaining
+                                await MainActor.run { onToken(finalPart, .content) }
+                                remaining = ""
+                            }
+                        } else {
+                            if let range = remaining.range(of: "</think>") {
+                                let prefix = String(remaining[..<range.lowerBound])
+                                if !prefix.isEmpty {
+                                    await MainActor.run { onToken(prefix, .thinking) }
+                                }
+                                isInThinkTag = false
+                                remaining = String(remaining[range.upperBound...])
+                            } else {
+                                let finalPart = remaining
+                                await MainActor.run { onToken(finalPart, .thinking) }
+                                remaining = ""
+                            }
+                        }
+                    }
                 }
                 await MainActor.run { onComplete(nil) }
             } catch {
                 await MainActor.run { onComplete(error) }
             }
         }
+    }
+
+    func fetchModels(
+        provider: AIProvider,
+        baseURL: String,
+        apiKey: String
+    ) async throws -> [String] {
+        if provider.requiresAPIKey && apiKey.isEmpty {
+            throw AIError.missingAPIKey
+        }
+
+        guard let url = URL(string: baseURL.trimmingCharacters(in: .init(charactersIn: "/")) + "/models") else {
+            throw AIError.badURL
+        }
+
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+            throw AIError.httpError(httpResponse.statusCode)
+        }
+
+        struct ModelsResponse: Codable {
+            struct ModelItem: Codable {
+                let id: String
+            }
+            let data: [ModelItem]
+        }
+
+        let decoded = try JSONDecoder().decode(ModelsResponse.self, from: data)
+        return decoded.data.map { $0.id }.sorted()
     }
 }
 

@@ -19,6 +19,12 @@ struct ShortcutSettingsView: View {
     @State private var apiKey: String          = KeychainService.shared.getAPIKey()
     @State private var showAPIKey              = false
     @State private var aiSaved                 = false
+    @State private var enableThinking          = UserDefaults.standard.aiEnableThinking
+    
+    // Fetching models
+    @State private var availableModels: [String] = []
+    @State private var isFetchingModels        = false
+    @State private var fetchError: String?     = nil
 
     var onDismiss: (() -> Void)? = nil
     var onSave: (HotkeyShortcut) -> Void
@@ -42,6 +48,8 @@ struct ShortcutSettingsView: View {
                     // Reset URL and model to defaults for the chosen provider
                     baseURL = newProvider.defaultBaseURL
                     model   = newProvider.defaultModel
+                    // Clear stale model list
+                    availableModels = []
                 }
 
                 // Base URL
@@ -53,6 +61,9 @@ struct ShortcutSettingsView: View {
                     TextField("http://localhost:11434/v1", text: $baseURL)
                         .font(.system(size: 12, design: .monospaced))
                         .textFieldStyle(.roundedBorder)
+                        .onChange(of: baseURL) { _ in
+                            availableModels = []
+                        }
                 }
 
                 // Model
@@ -64,6 +75,29 @@ struct ShortcutSettingsView: View {
                     TextField(provider.defaultModel, text: $model)
                         .font(.system(size: 12, design: .monospaced))
                         .textFieldStyle(.roundedBorder)
+                    
+                    if isFetchingModels {
+                        ProgressView().controlSize(.small).scaleEffect(0.5)
+                    } else {
+                        Menu {
+                            if availableModels.isEmpty {
+                                Button("No models loaded") {}.disabled(true)
+                            } else {
+                                ForEach(availableModels, id: \.self) { m in
+                                    Button(m) { model = m }
+                                }
+                            }
+                            Divider()
+                            Button("Refresh Models") {
+                                fetchAvailableModels()
+                            }
+                        } label: {
+                            Image(systemName: "arrow.clockwise.circle")
+                                .foregroundStyle(.blue)
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                    }
                 }
 
                 // API Key — only for OpenAI
@@ -88,6 +122,17 @@ struct ShortcutSettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                } else if provider == .ollama {
+                    HStack {
+                        Text("Thinking")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 70, alignment: .leading)
+                        Toggle("Enable experimental reasoning mode", isOn: $enableThinking)
+                            .toggleStyle(.checkbox)
+                            .font(.system(size: 12))
+                        Spacer()
+                    }
                 }
 
                 HStack {
@@ -105,6 +150,7 @@ struct ShortcutSettingsView: View {
                         UserDefaults.standard.aiProvider  = provider
                         UserDefaults.standard.aiBaseURL   = baseURL
                         UserDefaults.standard.aiModel     = model
+                        UserDefaults.standard.aiEnableThinking = enableThinking
                         KeychainService.shared.setAPIKey(apiKey)
                         withAnimation { aiSaved = true }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -151,6 +197,30 @@ struct ShortcutSettingsView: View {
         .padding(20)
         .frame(width: 420)
         .onAppear { recorder.current = ShortcutStore.shared.shortcut }
+    }
+
+    private func fetchAvailableModels() {
+        isFetchingModels = true
+        fetchError = nil
+        
+        Task {
+            do {
+                let models = try await AIService.shared.fetchModels(
+                    provider: provider,
+                    baseURL: baseURL,
+                    apiKey: apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+                await MainActor.run {
+                    self.availableModels = models
+                    self.isFetchingModels = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.fetchError = error.localizedDescription
+                    self.isFetchingModels = false
+                }
+            }
+        }
     }
 }
 

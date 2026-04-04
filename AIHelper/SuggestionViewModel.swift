@@ -9,13 +9,20 @@ import Combine
 enum SuggestionState {
     case idle
     case loading
-    case streaming(text: String)
-    case done(text: String)
+    case streaming(thinking: String, content: String)
+    case done(thinking: String, content: String)
     case error(message: String)
 
     var resultText: String? {
         switch self {
-        case .streaming(let t), .done(let t): return t
+        case .streaming(_, let c), .done(_, let c): return c
+        default: return nil
+        }
+    }
+
+    var thinkingText: String? {
+        switch self {
+        case .streaming(let t, _), .done(let t, _): return t
         default: return nil
         }
     }
@@ -50,16 +57,17 @@ class SuggestionViewModel: ObservableObject {
         state = .loading
 
         streamTask = Task {
-            var accumulated = ""
+            var thinking = ""
+            var content  = ""
 
             // Bridge the actor-isolated callbacks into an AsyncStream
-            let stream = AsyncStream<Result<String, Error>> { continuation in
+            let stream = AsyncStream<Result<(String, AIService.TokenType), Error>> { continuation in
                 Task {
                     await AIService.shared.stream(
                         action: action,
                         text: combinedText,
-                        onToken: { token in
-                            continuation.yield(.success(token))
+                        onToken: { token, type in
+                            continuation.yield(.success((token, type)))
                         },
                         onComplete: { error in
                             if let error {
@@ -74,9 +82,13 @@ class SuggestionViewModel: ObservableObject {
             for await result in stream {
                 guard !Task.isCancelled else { break }
                 switch result {
-                case .success(let token):
-                    accumulated += token
-                    state = .streaming(text: accumulated)
+                case .success(let (token, type)):
+                    if type == .thinking {
+                        thinking += token
+                    } else {
+                        content += token
+                    }
+                    state = .streaming(thinking: thinking, content: content)
                 case .failure(let error):
                     state = .error(message: error.localizedDescription)
                     return
@@ -85,7 +97,7 @@ class SuggestionViewModel: ObservableObject {
 
             guard !Task.isCancelled else { return }
             if case .streaming = state {
-                state = .done(text: accumulated)
+                state = .done(thinking: thinking, content: content)
             }
         }
     }
