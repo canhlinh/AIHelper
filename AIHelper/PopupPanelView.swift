@@ -14,6 +14,7 @@ struct PopupPanelView: View {
     var onPasteBack: ((String) -> Void)?
 
     @StateObject private var vm = SuggestionViewModel()
+    @StateObject private var translationVM = SuggestionViewModel()
     @State private var isVisible = false
     @FocusState private var isQueryFocused: Bool
 
@@ -52,6 +53,7 @@ struct PopupPanelView: View {
 
     private func submitFollowUp() {
         guard !vm.followUpQuery.isEmpty else { return }
+        translationVM.reset()
         vm.run(action: .followUp, text: selectedText, query: vm.followUpQuery)
     }
 
@@ -126,11 +128,55 @@ struct PopupPanelView: View {
             if vm.state.isWorking {
                 LoadingDotsView()
             } else if let resultText = vm.state.resultText {
-                Text(resultText)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.white)
-                    .lineSpacing(4)
-                    .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(resultText)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white)
+                        .lineSpacing(4)
+                        .textSelection(.enabled)
+                    
+                    // Quick Translation Actions — ONLY for Spelling Check
+                    if vm.activeAction == .fixSpelling {
+                        HStack(spacing: 8) {
+                            if UserDefaults.standard.aiTranslateVI {
+                                QuickActionButton(title: "Tiếng Việt", icon: "character.bubble", color: .red) {
+                                    translationVM.run(action: .translateVI, text: resultText)
+                                }
+                            }
+                            if UserDefaults.standard.aiTranslateKO {
+                                QuickActionButton(title: "Tiếng Hàn", icon: "character.bubble", color: .blue) {
+                                    translationVM.run(action: .translateKO, text: resultText)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Translation Result Area
+                    if translationVM.state.isWorking || translationVM.state.resultText != nil {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Divider().opacity(0.1).padding(.vertical, 4)
+                            
+                            if translationVM.state.isWorking && (translationVM.state.resultText?.isEmpty ?? true) {
+                                LoadingDotsView()
+                                    .padding(.vertical, 4)
+                            }
+                            
+                            if let transThinking = translationVM.state.thinkingText, !transThinking.isEmpty {
+                                ThinkingView(text: transThinking)
+                                    .padding(.bottom, 4)
+                            }
+                            
+                            if let transResult = translationVM.state.resultText, !transResult.isEmpty {
+                                Text(transResult)
+                                    .font(.system(size: 14, design: .serif))
+                                    .foregroundStyle(.white.opacity(0.85))
+                                    .lineSpacing(4)
+                                    .textSelection(.enabled)
+                                    .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+                        }
+                    }
+                }
             } else if case .error(let message) = vm.state {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -296,6 +342,36 @@ private struct ThinkingView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.blue.opacity(0.1), lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Quick Action Button
+
+private struct QuickActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.1))
+            .foregroundStyle(color.opacity(0.8))
+            .cornerRadius(6)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(color.opacity(0.2), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

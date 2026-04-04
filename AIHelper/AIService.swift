@@ -35,6 +35,8 @@ extension UserDefaults {
         static let baseURL  = "aiBaseURL"
         static let model    = "aiModel"
         static let enableThinking = "aiEnableThinking"
+        static let translateVI = "aiTranslateVI"
+        static let translateKO = "aiTranslateKO"
     }
 
     nonisolated var aiProvider: AIProvider {
@@ -65,54 +67,69 @@ extension UserDefaults {
         get { bool(forKey: K.enableThinking) }
         set { set(newValue, forKey: K.enableThinking) }
     }
+
+    nonisolated var aiTranslateVI: Bool {
+        get {
+            if object(forKey: K.translateVI) == nil { return true }
+            return bool(forKey: K.translateVI)
+        }
+        set { set(newValue, forKey: K.translateVI) }
+    }
+
+    nonisolated var aiTranslateKO: Bool {
+        get {
+            if object(forKey: K.translateKO) == nil { return true }
+            return bool(forKey: K.translateKO)
+        }
+        set { set(newValue, forKey: K.translateKO) }
+    }
 }
 
 // MARK: - Prompts
 
 enum AIAction: String, CaseIterable, Sendable {
     case fixSpelling   = "Fix Spelling and Grammar"
-    case rephrase      = "Rephrase"
-    case makeShorter   = "Make Shorter"
-    case makeList      = "Make into List"
-    case changeTone    = "Change Tone"
     case followUp      = "Follow-up"
+    case translateVI   = "Dịch sang Tiếng Việt"
+    case translateKO   = "Dịch sang Tiếng Hàn"
 
     nonisolated var systemPrompt: String {
         switch self {
         case .fixSpelling:
-            return "You are a grammar and spelling assistant. Fix any spelling, grammar, and punctuation errors in the user's text. Return only the corrected text with no explanation."
-        case .rephrase:
-            return "You are a writing assistant. Rephrase the user's text to improve clarity and flow while preserving the original meaning. Return only the rephrased text."
-        case .makeShorter:
-            return "You are a writing assistant. Make the user's text more concise, removing unnecessary words while keeping the key information. Return only the shortened text."
-        case .makeList:
-            return "You are a writing assistant. Convert the user's text into a clean bullet-point list. Return only the list."
-        case .changeTone:
-            return "You are a writing assistant. Rewrite the user's text in a professional and polished tone. Return only the rewritten text."
+            return """
+            SYSTEM: You are a robotic grammar correction tool. 
+            RULES:
+            - Provide ONLY the corrected text.
+            - NO preamble. 
+            - NO explanation.
+            - NO alternatives.
+            - If the input is a fragment, complete it naturally.
+            - Return exactly one string.
+            """
         case .followUp:
-            return "You are a helpful assistant. Provide a helpful and nuanced response based on the text context provided."
+            return "You are a helpful and intelligent assistant. Answer the user's question or follow-up request accurately based on the provided text context. Be detailed yet concise."
+        case .translateVI:
+            return "Translate the following text to natural Vietnamese. Return ONLY the translation. No preamble."
+        case .translateKO:
+            return "Translate the following text to natural Korean. Return ONLY the translation. No preamble."
         }
     }
 
     nonisolated var icon: String {
         switch self {
         case .fixSpelling:  return "wand.and.stars"
-        case .rephrase:     return "arrow.trianglehead.2.clockwise"
-        case .makeShorter:  return "arrow.down.left.and.arrow.up.right"
-        case .makeList:     return "list.bullet"
-        case .changeTone:   return "textformat"
         case .followUp:     return "bubble.left.and.bubble.right"
+        case .translateVI:  return "character.bubble"
+        case .translateKO:  return "character.bubble"
         }
     }
 
     nonisolated var color: String {
         switch self {
         case .fixSpelling:  return "purple"
-        case .rephrase:     return "blue"
-        case .makeShorter:  return "orange"
-        case .makeList:     return "green"
-        case .changeTone:   return "pink"
         case .followUp:     return "cyan"
+        case .translateVI:  return "red"
+        case .translateKO:  return "blue"
         }
     }
 }

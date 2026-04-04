@@ -18,8 +18,9 @@ struct ShortcutSettingsView: View {
     @State private var model: String           = UserDefaults.standard.aiModel
     @State private var apiKey: String          = KeychainService.shared.getAPIKey()
     @State private var showAPIKey              = false
-    @State private var aiSaved                 = false
     @State private var enableThinking          = UserDefaults.standard.aiEnableThinking
+    @State private var translateVI             = UserDefaults.standard.aiTranslateVI
+    @State private var translateKO             = UserDefaults.standard.aiTranslateKO
     
     // Fetching models
     @State private var availableModels: [String] = []
@@ -140,26 +141,26 @@ struct ShortcutSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    if aiSaved {
-                        Label("Saved", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                            .transition(.opacity)
-                    }
-                    Button("Save") {
-                        UserDefaults.standard.aiProvider  = provider
-                        UserDefaults.standard.aiBaseURL   = baseURL
-                        UserDefaults.standard.aiModel     = model
-                        UserDefaults.standard.aiEnableThinking = enableThinking
-                        KeychainService.shared.setAPIKey(apiKey)
-                        withAnimation { aiSaved = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            withAnimation { aiSaved = false }
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                 }
+            }
+
+            Divider()
+
+            // ── Translation ──────────────────────────────────────────
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Translation Buttons", systemImage: "character.book.closed")
+                    .font(.headline)
+                
+                Text("Show translation buttons below AI responses for these languages:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 30) {
+                    Toggle("Tiếng Việt", isOn: $translateVI)
+                    Toggle("Tiếng Hàn", isOn: $translateKO)
+                }
+                .toggleStyle(.checkbox)
+                .font(.system(size: 13))
             }
 
             Divider()
@@ -187,8 +188,8 @@ struct ShortcutSettingsView: View {
                 Button("Cancel") {
                     onDismiss?()
                 }
-                Button("Save Shortcut") {
-                    onSave(recorder.current)
+                Button("Save") {
+                    saveAll()
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(recorder.isRecording)
@@ -197,6 +198,17 @@ struct ShortcutSettingsView: View {
         .padding(20)
         .frame(width: 420)
         .onAppear { recorder.current = ShortcutStore.shared.shortcut }
+    }
+
+    private func saveAll() {
+        UserDefaults.standard.aiProvider  = provider
+        UserDefaults.standard.aiBaseURL   = baseURL
+        UserDefaults.standard.aiModel     = model
+        UserDefaults.standard.aiEnableThinking = enableThinking
+        UserDefaults.standard.aiTranslateVI = translateVI
+        UserDefaults.standard.aiTranslateKO = translateKO
+        KeychainService.shared.setAPIKey(apiKey)
+        onSave(recorder.current)
     }
 
     private func fetchAvailableModels() {
