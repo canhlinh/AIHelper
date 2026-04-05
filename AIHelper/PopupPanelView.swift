@@ -129,11 +129,7 @@ struct PopupPanelView: View {
                 LoadingDotsView()
             } else if let resultText = vm.state.resultText {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(resultText)
-                        .font(.system(size: 15))
-                        .foregroundStyle(.white)
-                        .lineSpacing(4)
-                        .textSelection(.enabled)
+                    MarkdownContentView(text: resultText)
                     
                     // Quick Translation Actions — ONLY for Spelling Check
                     if vm.activeAction == .fixSpelling {
@@ -167,12 +163,7 @@ struct PopupPanelView: View {
                             }
                             
                             if let transResult = translationVM.state.resultText, !transResult.isEmpty {
-                                Text(transResult)
-                                    .font(.system(size: 14, design: .serif))
-                                    .foregroundStyle(.white.opacity(0.85))
-                                    .lineSpacing(4)
-                                    .textSelection(.enabled)
-                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                MarkdownContentView(text: transResult, fontSize: 14, color: .white.opacity(0.85), fontDesign: .serif)
                             }
                         }
                     }
@@ -325,10 +316,7 @@ private struct ThinkingView: View {
             .buttonStyle(.plain)
             
             if isExpanded {
-                Text(text)
-                    .font(.system(size: 13, design: .serif))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .lineSpacing(2)
+                MarkdownContentView(text: text, fontSize: 13, color: .white.opacity(0.5), fontDesign: .serif)
                     .padding(.leading, 4)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
