@@ -1,0 +1,6 @@
+pynput>=1.7.6
+keyring>=24.0.0
+requests>=2.31.0
+mistune>=3.0.0
+pystray>=0.19.0
+Pillow>=10.0.0

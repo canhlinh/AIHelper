@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=AIHelper
+GenericName=AI Writing Assistant
+Comment=Menu-bar AI writing assistant – Fix spelling, translate and chat with selected text
+Exec=aihelper
+Icon=aihelper
+StartupNotify=false
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=AI;writing;grammar;spell;translate;assistant;
+X-GNOME-Autostart-enabled=true
