@@ -157,6 +157,19 @@ To pass review:
 3. After approval, release manually or automatically.
 4. Track crashes/feedback and prepare `1.0.1` bugfix build.
 
+## Appendix A: Privacy Policy Template
+
+Because AIHelper processes user text, Apple requires a valid Privacy Policy URL. You can host this simple privacy policy on a free site (like GitHub Pages or Notion) and paste the link into App Store Connect:
+
+> **AIHelper Privacy Policy**
+> 
+> **Data Collection and Use**
+> AIHelper is a utility designed to assist with writing by sending user-selected text to a designated AI text-generation endpoint (e.g., OpenAI or a local Ollama instance).
+> 
+> 1. **Text Processing:** Text is only captured when you explicitly trigger the AIHelper shortcut while text is selected. The selected text is sent directly to your configured AI provider. AIHelper does not intercept or log keystrokes continually.
+> 2. **API Keys:** If you configure an API key (like OpenAI), it is stored securely on your device using macOS Keychain Services. It is solely used to authenticate your requests with the chosen provider and is never sent to our servers.
+> 3. **Data Retention:** AIHelper does not store, transmit, or retain any of your text, prompts, or generated responses on our servers, nor does it collect analytics or diagnostic data. All data transmission occurs exclusively between your device and your chosen AI endpoint.
+
 ## 9. Fast Pre-Submission Checklist
 
 - [x] Sandbox enabled and valid entitlements

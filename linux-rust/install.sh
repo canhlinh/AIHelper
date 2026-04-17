@@ -17,10 +17,10 @@ sudo dnf install -y \
 # ── 2. ydotool daemon (for paste-back feature) ────────────────────────
 echo ">>> Configuring ydotool daemon..."
 sudo mkdir -p /etc/systemd/system/ydotool.service.d
-sudo tee /etc/systemd/system/ydotool.service.d/socket-perms.conf > /dev/null <<'EOF'
+sudo tee /etc/systemd/system/ydotool.service.d/socket-perms.conf > /dev/null <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/ydotoold --socket-perm 0666
+ExecStart=/usr/bin/ydotoold --socket-own $(id -u):$(id -g) --socket-perm 0600
 EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now ydotool.service || echo "  (ydotool service not available, paste-back will be limited)"

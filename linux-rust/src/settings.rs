@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::os::unix::fs::OpenOptionsExt;
 
 fn config_path() -> PathBuf {
     let base = std::env::var("XDG_CONFIG_HOME")
@@ -19,7 +20,7 @@ pub struct Settings {
     pub base_url: String,
     #[serde(default = "default_model")]
     pub model: String,
-    #[serde(default)]
+    #[serde(skip)]
     pub api_key: String,
     #[serde(default = "default_hotkey")]
     pub hotkey: String,
@@ -55,11 +56,14 @@ impl Default for Settings {
 impl Settings {
     pub fn load() -> Self {
         let path = config_path();
-        if let Ok(data) = std::fs::read_to_string(&path) {
+        let mut settings: Self = if let Ok(data) = std::fs::read_to_string(&path) {
             serde_json::from_str(&data).unwrap_or_default()
         } else {
             Self::default()
-        }
+        };
+        
+        settings.api_key = get_api_key_secret();
+        settings
     }
 
     pub fn save(&self) {
@@ -68,8 +72,15 @@ impl Settings {
             let _ = std::fs::create_dir_all(parent);
         }
         if let Ok(json) = serde_json::to_string_pretty(self) {
-            let _ = std::fs::write(path, json);
+            let mut options = std::fs::OpenOptions::new();
+            options.write(true).create(true).truncate(true).mode(0o600);
+            if let Ok(mut file) = options.open(&path) {
+                use std::io::Write;
+                let _ = file.write_all(json.as_bytes());
+            }
         }
+        
+        set_api_key_secret(&self.api_key);
     }
 
     pub fn ollama_default_model() -> &'static str {
@@ -82,5 +93,45 @@ impl Settings {
 
     pub fn ollama_default_base_url() -> &'static str {
         "http://localhost:11434/v1"
+    }
+}
+
+// ── Secure Storage Helpers ───────────────────────────────────────────────────
+
+fn get_schema() -> libsecret::Schema {
+    let mut attrs = std::collections::HashMap::new();
+    attrs.insert("account", libsecret::SchemaAttributeType::String);
+    libsecret::Schema::new(
+        "dev.lingcloud.aihelper",
+        libsecret::SchemaFlags::NONE,
+        attrs,
+    )
+}
+
+fn get_api_key_secret() -> String {
+    let schema = get_schema();
+    let mut attrs = std::collections::HashMap::new();
+    attrs.insert("account", "aihelper_api_key");
+    match libsecret::password_lookup_sync(Some(&schema), attrs, None::<&gio::Cancellable>) {
+        Ok(Some(passwd)) => passwd.to_string(),
+        _ => String::new(),
+    }
+}
+
+fn set_api_key_secret(api_key: &str) {
+    let schema = get_schema();
+    let mut attrs = std::collections::HashMap::new();
+    attrs.insert("account", "aihelper_api_key");
+    if api_key.trim().is_empty() {
+        let _ = libsecret::password_clear_sync(Some(&schema), attrs, None::<&gio::Cancellable>);
+    } else {
+        let _ = libsecret::password_store_sync(
+            Some(&schema),
+            attrs,
+            Some(libsecret::COLLECTION_DEFAULT),
+            "AIHelper API Key",
+            api_key,
+            None::<&gio::Cancellable>,
+        );
     }
 }

@@ -30,6 +30,13 @@ Because there are distinct native implementations for macOS and Linux, please se
 - **macOS:** See the [macOS Instructions](macos/README.md).
 - **Linux:** See the [Linux Instructions](linux-rust/README.md).
 
+## Security & Privacy 🔒
+
+AIHelper is built with security in mind:
+- **API Key Storage:** On macOS, API keys are securely stored in the system's underlying native Keychain framework. On Linux, API keys are encrypted at rest using the Secret Service API (`libsecret`), interfacing with GNOME Keyring or KDE KWallet, and configuration files are heavily restricted via Unix permissions (`0600`).
+- **No Telemetry:** We collect zero telemetry, analytics, or diagnostics. Your keystrokes and data are processed entirely between your machine and your chosen AI endpoint.
+- **Secure Daemons:** The Linux daemon used for simulating keyboard automation is strictly restricted by user ownership and permissions to prevent local privilege escalation or unauthenticated key injection.
+
 ## License
 
 This project is available for personal and other non-commercial use only.
