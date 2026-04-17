@@ -73,31 +73,48 @@ struct ShortcutSettingsView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .frame(width: 70, alignment: .leading)
-                    TextField(provider.defaultModel, text: $model)
-                        .font(.system(size: 12, design: .monospaced))
-                        .textFieldStyle(.roundedBorder)
+                    
+                    Menu {
+                        let currentModel = model.isEmpty ? provider.defaultModel : model
+                        let modelsToShow = availableModels.contains(currentModel) ? availableModels : [currentModel] + availableModels
+                        
+                        ForEach(modelsToShow, id: \.self) { m in
+                            Button(m) { model = m }
+                        }
+                    } label: {
+                        HStack {
+                            Text(model.isEmpty ? provider.defaultModel : model)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            Spacer()
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
                     
                     if isFetchingModels {
                         ProgressView().controlSize(.small).scaleEffect(0.5)
                     } else {
-                        Menu {
-                            if availableModels.isEmpty {
-                                Button("No models loaded") {}.disabled(true)
-                            } else {
-                                ForEach(availableModels, id: \.self) { m in
-                                    Button(m) { model = m }
-                                }
-                            }
-                            Divider()
-                            Button("Refresh Models") {
-                                fetchAvailableModels()
-                            }
+                        Button {
+                            fetchAvailableModels()
                         } label: {
                             Image(systemName: "arrow.clockwise.circle")
                                 .foregroundStyle(.blue)
                         }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
+                        .buttonStyle(.plain)
+                        .help("Refresh Models")
                     }
                 }
 

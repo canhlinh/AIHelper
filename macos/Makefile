@@ -20,7 +20,7 @@ run: build
 	open $(RELEASE)
 
 ## Install to /Applications
-install: build
+install: kill build
 	@echo "Installing to $(INSTALL)..."
 	@rm -rf $(INSTALL)
 	@cp -R $(RELEASE) $(INSTALL)

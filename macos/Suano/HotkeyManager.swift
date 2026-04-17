@@ -52,8 +52,6 @@ nonisolated class HotkeyManager: @unchecked Sendable {
 
         // Listen for keyDown + tapDisabled events so we can re-enable if macOS kills the tap
         let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
-                 | CGEventMask(1 << CGEventType.tapDisabledByTimeout.rawValue)
-                 | CGEventMask(1 << CGEventType.tapDisabledByUserInput.rawValue)
 
         // Use passUnretained — AppDelegate holds HotkeyManager alive for the app's lifetime
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
