@@ -162,7 +162,7 @@ pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<
     let footer = GBox::new(Orientation::Horizontal, 8);
     footer.add_css_class("popup-footer");
 
-    let brand = Label::new(Some("✦ AI Helper"));
+    let brand = Label::new(Some("✦ Suano"));
     brand.add_css_class("brand-label");
     brand.set_hexpand(true);
     brand.set_halign(gtk4::Align::Start);

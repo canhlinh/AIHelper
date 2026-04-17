@@ -206,7 +206,7 @@ struct PopupPanelView: View {
                 Image(systemName: "sparkles")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.linearGradient(colors: [.blue, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                Text("AI Helper")
+                Text("Suano")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.5))
             }
