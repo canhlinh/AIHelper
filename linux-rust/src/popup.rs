@@ -196,7 +196,7 @@ pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<
             }
             crate::clipboard::write_clipboard(&text);
             w.close();
-            glib::timeout_add_local_once(std::time::Duration::from_millis(200), || {
+            glib::timeout_add_local_once(std::time::Duration::from_millis(400), || {
                 crate::clipboard::send_paste();
             });
         }
@@ -258,10 +258,8 @@ pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<
         let result_state = state.clone();
         btn_vi.connect_clicked(move |_| {
             let text = result_state.borrow().content.clone();
-            if text.is_empty() {
-                return;
-            }
-            run_translation(AIAction::TranslateVI, text, s.clone(), tv.clone());
+            if text.is_empty() { return; }
+            run_translation(AIAction::TranslateVI, text, s.clone(), result_state.clone(), tv.clone());
         });
     }
     {
@@ -270,10 +268,8 @@ pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<
         let result_state = state.clone();
         btn_ko.connect_clicked(move |_| {
             let text = result_state.borrow().content.clone();
-            if text.is_empty() {
-                return;
-            }
-            run_translation(AIAction::TranslateKO, text, s.clone(), tv.clone());
+            if text.is_empty() { return; }
+            run_translation(AIAction::TranslateKO, text, s.clone(), result_state.clone(), tv.clone());
         });
     }
 
@@ -375,10 +371,12 @@ fn run_translation(
     action: AIAction,
     text: String,
     settings: Arc<Mutex<Settings>>,
+    state: Rc<RefCell<PopupState>>,
     trans_view: TextView,
 ) {
     trans_view.buffer().set_text("");
     trans_view.set_visible(true);
+    state.borrow_mut().content.clear();
 
     let (tx, mut rx) = mpsc::unbounded_channel::<Result<Token, String>>();
     let cfg = settings.lock().unwrap().clone();
@@ -396,6 +394,7 @@ fn run_translation(
     glib::spawn_future_local(async move {
         while let Some(msg) = rx.recv().await {
             if let Ok(Token::Content(c)) = msg {
+                state.borrow_mut().content.push_str(&c);
                 let buf = trans_view.buffer();
                 let mut end = buf.end_iter();
                 buf.insert(&mut end, &c);

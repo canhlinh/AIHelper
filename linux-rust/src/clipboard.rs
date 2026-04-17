@@ -3,7 +3,16 @@
 use std::process::Command;
 
 fn ydotool(args: &[&str]) {
-    let _ = Command::new("ydotool").args(args).status();
+    // Try user socket first, fall back to system socket
+    let socket = if std::path::Path::new("/run/user/1000/.ydotool_socket").exists() {
+        "/run/user/1000/.ydotool_socket"
+    } else {
+        "/tmp/.ydotool_socket"
+    };
+    let _ = Command::new("ydotool")
+        .env("YDOTOOL_SOCKET", socket)
+        .args(args)
+        .status();
 }
 
 /// Read clipboard text — try primary selection first (highlighted text),
