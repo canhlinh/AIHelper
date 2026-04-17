@@ -1,9 +1,10 @@
 use gtk4::prelude::*;
 use gtk4::{
     Application, ApplicationWindow, Box as GBox, Button, CssProvider, Entry, Label,
-    Orientation, PolicyType, ScrolledWindow, Spinner, Stack, TextView, WrapMode,
+    Orientation, PolicyType, ScrolledWindow, Spinner, Stack,
     gdk, glib,
 };
+use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -18,6 +19,32 @@ struct PopupState {
     thinking: String,
     content: String,
     done: bool,
+}
+
+fn markdown_to_pango(md: &str) -> String {
+    let mut out = String::new();
+    let parser = Parser::new_ext(md, Options::ENABLE_STRIKETHROUGH);
+    for event in parser {
+        match event {
+            Event::Start(Tag::Strong) => out.push_str("<b>"),
+            Event::End(TagEnd::Strong) => out.push_str("</b>"),
+            Event::Start(Tag::Emphasis) => out.push_str("<i>"),
+            Event::End(TagEnd::Emphasis) => out.push_str("</i>"),
+            Event::Start(Tag::Strikethrough) => out.push_str("<s>"),
+            Event::End(TagEnd::Strikethrough) => out.push_str("</s>"),
+            Event::Start(Tag::CodeBlock(_)) => out.push_str("<tt>"),
+            Event::End(TagEnd::CodeBlock) => out.push_str("</tt>"),
+            Event::Code(c) => { out.push_str("<tt>"); out.push_str(&glib::markup_escape_text(&c)); out.push_str("</tt>"); }
+            Event::Start(Tag::Heading { .. }) => out.push_str("<b>"),
+            Event::End(TagEnd::Heading(_)) => out.push_str("</b>\n"),
+            Event::Start(Tag::Item) => out.push_str("• "),
+            Event::End(TagEnd::Paragraph) | Event::End(TagEnd::Item) => out.push('\n'),
+            Event::SoftBreak | Event::HardBreak => out.push('\n'),
+            Event::Text(t) => out.push_str(&glib::markup_escape_text(&t)),
+            _ => {}
+        }
+    }
+    out.trim_end().to_string()
 }
 
 pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<Settings>>) {
@@ -82,10 +109,12 @@ pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<
     spinner.set_spinning(true);
     spinner.add_css_class("spinner");
 
-    let result_view = TextView::new();
-    result_view.set_editable(false);
-    result_view.set_wrap_mode(WrapMode::Word);
-    result_view.set_cursor_visible(false);
+    let result_view = Label::new(None);
+    result_view.set_use_markup(true);
+    result_view.set_wrap(true);
+    result_view.set_selectable(true);
+    result_view.set_halign(gtk4::Align::Start);
+    result_view.set_valign(gtk4::Align::Start);
     result_view.add_css_class("result-view");
 
     let thinking_label = Label::new(None);
@@ -114,10 +143,12 @@ pub fn show_popup(app: &Application, selected_text: String, settings: Arc<Mutex<
     trans_box.append(&btn_ko);
 
     // Translation result
-    let trans_view = TextView::new();
-    trans_view.set_editable(false);
-    trans_view.set_wrap_mode(WrapMode::Word);
-    trans_view.set_cursor_visible(false);
+    let trans_view = Label::new(None);
+    trans_view.set_use_markup(true);
+    trans_view.set_wrap(true);
+    trans_view.set_selectable(true);
+    trans_view.set_halign(gtk4::Align::Start);
+    trans_view.set_valign(gtk4::Align::Start);
     trans_view.add_css_class("trans-view");
     trans_view.set_visible(false);
 
@@ -291,11 +322,11 @@ fn run_action(
     settings: Arc<Mutex<Settings>>,
     state: Rc<RefCell<PopupState>>,
     stack: Stack,
-    result_view: TextView,
+    result_view: Label,
     thinking_label: Label,
     paste_btn: Button,
     trans_box: GBox,
-    trans_view: TextView,
+    trans_view: Label,
     action_label: Label,
 ) {
     action_label.set_text(action.label());
@@ -311,7 +342,7 @@ fn run_action(
         s.content.clear();
         s.done = false;
     }
-    result_view.buffer().set_text("");
+    result_view.set_label("");
     thinking_label.set_text("");
 
     let (tx, mut rx) = mpsc::unbounded_channel::<Result<Token, String>>();
@@ -343,13 +374,11 @@ fn run_action(
                 Ok(Token::Content(c)) => {
                     let mut s = state.borrow_mut();
                     s.content.push_str(&c);
-                    let buf = result_view.buffer();
-                    let mut end = buf.end_iter();
-                    buf.insert(&mut end, &c);
+                    result_view.set_markup(&markdown_to_pango(&s.content));
                     stack.set_visible_child_name("result");
                 }
                 Err(e) => {
-                    result_view.buffer().set_text(&format!("⚠ Error: {e}"));
+                    result_view.set_text(&format!("⚠ Error: {e}"));
                     stack.set_visible_child_name("result");
                     return;
                 }
@@ -372,9 +401,9 @@ fn run_translation(
     text: String,
     settings: Arc<Mutex<Settings>>,
     state: Rc<RefCell<PopupState>>,
-    trans_view: TextView,
+    trans_view: Label,
 ) {
-    trans_view.buffer().set_text("");
+    trans_view.set_label("");
     trans_view.set_visible(true);
     state.borrow_mut().content.clear();
 
@@ -394,10 +423,9 @@ fn run_translation(
     glib::spawn_future_local(async move {
         while let Some(msg) = rx.recv().await {
             if let Ok(Token::Content(c)) = msg {
-                state.borrow_mut().content.push_str(&c);
-                let buf = trans_view.buffer();
-                let mut end = buf.end_iter();
-                buf.insert(&mut end, &c);
+                let mut s = state.borrow_mut();
+                s.content.push_str(&c);
+                trans_view.set_markup(&markdown_to_pango(&s.content));
             }
         }
     });
