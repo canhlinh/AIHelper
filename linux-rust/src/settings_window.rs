@@ -146,11 +146,42 @@ pub fn show_settings(app: &Application, settings: Arc<Mutex<Settings>>, on_save:
                 if let Ok(result) = rx.await {
                     match result {
                         Ok(models) => {
-                            if let Some(first) = models.first() {
-                                model_entry.set_text(first);
+                            let popover = gtk4::Popover::new();
+                            popover.set_parent(&fetch_btn);
+
+                            let scrolled_window = gtk4::ScrolledWindow::new();
+                            scrolled_window.set_max_content_height(300);
+                            scrolled_window.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
+
+                            let list_box = gtk4::ListBox::new();
+                            list_box.set_selection_mode(gtk4::SelectionMode::None);
+
+                            for model in &models {
+                                let lbl = gtk4::Label::new(Some(model));
+                                lbl.set_halign(gtk4::Align::Start);
+                                lbl.set_margin_start(12);
+                                lbl.set_margin_end(12);
+                                lbl.set_margin_top(8);
+                                lbl.set_margin_bottom(8);
+                                list_box.append(&lbl);
                             }
-                            // Show a simple dialog with model list
-                            eprintln!("Available models: {:?}", models);
+
+                            scrolled_window.set_child(Some(&list_box));
+                            popover.set_child(Some(&scrolled_window));
+
+                            let models_clone = models.clone();
+                            let model_entry_clone = model_entry.clone();
+                            let popover_clone = popover.clone();
+                            
+                            list_box.connect_row_activated(move |_, row| {
+                                let idx = row.index() as usize;
+                                if let Some(model_name) = models_clone.get(idx) {
+                                    model_entry_clone.set_text(model_name);
+                                    popover_clone.popdown();
+                                }
+                            });
+
+                            popover.popup();
                         }
                         Err(e) => eprintln!("Fetch models error: {e}"),
                     }
