@@ -4,7 +4,7 @@ A Fedora Linux/Wayland port of the macOS AIHelper app. Select text in any app, p
 
 ## Features
 
-- Global hotkey (default `Ctrl+Shift+G`) via XDG Desktop Portal `GlobalShortcuts`
+- Global hotkey (default `Ctrl+Shift+G`) via GNOME Custom Keybindings & local D-Bus
 - Streaming AI responses (OpenAI-compatible APIs + Ollama)
 - Follow-up chat in the popup
 - `<think>` / reasoning token display (collapsible)
@@ -36,14 +36,14 @@ cargo build --release
 
 ## Configuration
 
-Click the app menu → **Settings** to set:
+Click the system tray icon → **Settings** to set:
 
 - AI Provider: **OpenAI** (any OpenAI-compatible endpoint, e.g. Groq) or **Ollama**
 - Base URL, Model, API Key
-- Global hotkey (GTK accelerator format, e.g. `<Ctrl><Shift>g`)
+- Global shortcut (click to record your desired combination)
 - Translation language buttons
 
 ## Notes
 
-- Requires a **Wayland** session (specifically uses Wayland portals + utilities). On Fedora with GNOME, use the default Wayland session.
+- Designed for a **GNOME Wayland** session (specifically uses GNOME Settings Daemon for custom keybindings and Wayland clipboard utilities).
 - `ydotool` the background daemon must be enabled. `install.sh` handles this for you automatically.
